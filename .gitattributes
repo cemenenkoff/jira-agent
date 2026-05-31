@@ -1,0 +1,8 @@
+# Normalize line endings to LF in the repository for all text files.
+* text=auto eol=lf
+
+# Treat known binary assets as binary (no EOL/CRLF munging, no diff noise).
+*.docx binary
+*.png binary
+*.jpg binary
+*.pdf binary

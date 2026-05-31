@@ -32,6 +32,7 @@ class AnthropicClient(LLMClient):
         resp = client.messages.create(
             model=self._model,
             max_tokens=max_tokens,
+            temperature=0.0,
             system=[
                 {
                     "type": "text",

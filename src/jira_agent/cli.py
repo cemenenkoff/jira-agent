@@ -32,7 +32,7 @@ def _build_pipeline(settings: Settings, corpus: PolicyCorpus) -> AgentPipeline:
 
     llm = AnthropicClient(settings)
     return AgentPipeline(
-        triage=TriageClassifier(llm),
+        triage=TriageClassifier(llm, corpus),
         retriever=TfidfRetriever(corpus),
         llm=llm,
         corpus=corpus,
@@ -62,13 +62,13 @@ def run_eval() -> None:
     from .eval.report import write_report
 
     tickets = load_eval_tickets(settings.tickets_file)
-    pipeline = _build_pipeline(settings, corpus)
     try:
-        records = evaluate(pipeline, tickets)
-    except NotImplementedError as exc:
-        console.print(f"[yellow]Pipeline not fully implemented yet:[/yellow] {exc}")
+        pipeline = _build_pipeline(settings, corpus)
+    except RuntimeError as exc:
+        console.print(f"[red]{exc}[/red]")
         raise typer.Exit(code=1) from exc
 
+    records = evaluate(pipeline, tickets)
     metrics = write_report(records, settings.reports_dir)
     console.print(metrics)
     console.print(f"[green]Wrote reports to {settings.reports_dir}[/green]")
@@ -84,8 +84,14 @@ def run() -> None:
     from .jira.client import JiraClient
     from .runner import AgentRunner
 
-    pipeline = _build_pipeline(settings, corpus)
-    with JiraClient(settings) as jira:
+    try:
+        pipeline = _build_pipeline(settings, corpus)
+        jira_cm = JiraClient(settings)
+    except RuntimeError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
+
+    with jira_cm as jira:
         runner = AgentRunner(
             pipeline=pipeline,
             jira=jira,

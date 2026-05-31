@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from ..config import Settings
 from ..llm.base import LLMClient
+from ..llm.parsing import JsonParseError, complete_json
+from ..llm.prompts import GROUNDED_ANSWER_SYSTEM, build_answer_prompt
 from ..logging_setup import get_logger
 from ..models import ActionType, Citation, Decision, ReasonCode, RetrievedSection, Ticket
 from ..policies.loader import PolicyCorpus
@@ -104,7 +106,39 @@ class AgentPipeline:
     def _generate_grounded_answer(
         self, ticket: Ticket, retrieved: list[RetrievedSection]
     ) -> tuple[str, list[Citation], bool]:
-        # TODO(next pass): render llm.prompts.GROUNDED_ANSWER_SYSTEM with the retrieved
-        # sections + render_ticket_block(ticket.body), call self._llm.complete(...),
-        # parse strict JSON {answer, citations[], conflict}. Returns (answer, citations, conflict).
-        raise NotImplementedError("grounded answer generation lands in the next pass")
+        """Ask the LLM to answer strictly from the retrieved sections.
+
+        Returns (answer, citations, conflict). On a parse failure we return an empty
+        answer with no citations, which the caller's grounding check turns into a
+        conservative LOW_CONFIDENCE deferral.
+        """
+        try:
+            data = complete_json(
+                self._llm,
+                system=GROUNDED_ANSWER_SYSTEM,
+                prompt=build_answer_prompt(ticket.body, retrieved),
+                max_tokens=600,
+            )
+        except JsonParseError as exc:
+            log.warning("answer.parse_failed", ticket=ticket.id, error=str(exc))
+            return "", [], False
+
+        conflict = bool(data.get("conflict", False))
+        answer = str(data.get("answer", "")).strip()
+        citations = _parse_citations(data.get("citations", []))
+        return answer, citations, conflict
+
+
+def _parse_citations(raw: object) -> list[Citation]:
+    """Normalize the model's citation list, tolerating '§'/stray formatting."""
+    citations: list[Citation] = []
+    if not isinstance(raw, list):
+        return citations
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        policy_id = str(item.get("policy_id", "")).strip().upper()
+        section = str(item.get("section", "")).lstrip("§ ").strip()
+        if policy_id and section:
+            citations.append(Citation(policy_id=policy_id, section=section))
+    return citations

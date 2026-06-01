@@ -64,8 +64,7 @@ uv run jira-agent policies | seed | run [--once] | eval | eval-live
 - ruff (line length 100) + mypy `--strict` must pass; pydantic for domain models; Protocols for
   swappable backends. Match existing module style.
 - **Secrets only via `.env`** (git-ignored) — never hard-code.
-- Commits: imperative subject + a "why" body, ending with the trailer
-  `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`. Work happens on `main`.
+- Commits: imperative subject + a "why" body. Work happens on `main`.
   **Ask before every `git push`.**
 
 ## 5. Gotchas

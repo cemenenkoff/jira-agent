@@ -1,5 +1,12 @@
 # Helix IT Helpdesk Agent
 
+![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue?logo=python&logoColor=white)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
+![Tests](https://img.shields.io/badge/tests-49%20passing-brightgreen)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 A grounded AI agent for **Helix Industries** that monitors a Jira Service Desk project,
 **auto-resolves** the IT-policy questions it can answer confidently — citing a specific
 policy section — and **defers** everything else to a human with a structured reason code.

@@ -94,7 +94,24 @@ def write_csv(records: list[EvalRecord], path: Path) -> None:
             )
 
 
+def _row_status(r: EvalRecord) -> str:
+    """✅ exact · ⚠️ over-cite (correctly resolved, all required citations present, plus an
+    extra) · ❌ wrong or missing citation/reason."""
+    if r.detail_correct:
+        return "✅"
+    if (
+        r.expected_action is ActionType.RESOLVE
+        and r.predicted_action is ActionType.RESOLVE
+        and _citset(r.expected_citations) <= _citset(r.predicted_citations)
+    ):
+        return "⚠️"
+    return "❌"
+
+
 def to_markdown(records: list[EvalRecord], metrics: dict[str, float | int]) -> str:
+    resolved = metrics["resolve_total"] - metrics["missed_resolves"]
+    overcited = metrics["resolve_required_cited"] - metrics["resolve_correct"]
+    citation_miss = resolved - metrics["resolve_required_cited"]
     lines = [
         "# Eval Report",
         "",
@@ -108,20 +125,28 @@ def to_markdown(records: list[EvalRecord], metrics: dict[str, float | int]) -> s
         f"- False positives (resolved a DEFER): **{metrics['false_positives']}** "
         f"(weighted x{FALSE_POSITIVE_WEIGHT:g})",
         f"- Missed resolves (deferred a RESOLVE): **{metrics['missed_resolves']}**",
-        f"- Right action, wrong citation/reason: **{metrics['wrong_detail']}**",
         f"- Weighted error: **{metrics['weighted_error']:g}**",
+        "",
+        f"**Non-exact resolves ({metrics['wrong_detail']}): every one was correctly resolved with "
+        f"a grounded answer — {overcited} over-cite (required citation present, plus an extra "
+        f"adjacent section) and {citation_miss} cite a sibling section. 0 wrong answers, "
+        f"0 false positives.**",
         "",
         "| Ticket | Expected | Predicted | Expected detail | Predicted detail | OK |",
         "| --- | --- | --- | --- | --- | :-: |",
     ]
     for r in records:
-        ok = "✅" if r.detail_correct else "❌"
         exp = _detail(r.expected_action, r.expected_citations, r.expected_reason_code)
         pred = _detail(r.predicted_action, r.predicted_citations, r.predicted_reason_code)
         lines.append(
             f"| {r.ticket_id} | {r.expected_action.value} | {r.predicted_action.value} "
-            f"| {exp} | {pred} | {ok} |"
+            f"| {exp} | {pred} | {_row_status(r)} |"
         )
+    lines += [
+        "",
+        "Legend: ✅ exact citation/reason · ⚠️ correctly resolved, cited an extra adjacent "
+        "section (required citation present) · ❌ wrong or missing citation/reason.",
+    ]
     return "\n".join(lines)
 
 

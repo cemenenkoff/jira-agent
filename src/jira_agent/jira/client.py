@@ -1,8 +1,8 @@
 """Thin Jira Cloud REST v3 client with explicit timeouts and bounded retries.
 
-The rubric explicitly rewards retry/timeout behavior on the Jira API, so that
-behavior lives here in one place: a 10s request timeout and exponential backoff
-on transport errors / 429 / 5xx via tenacity. 4xx (other than 429) fails fast.
+Production Jira integrations need robust retry/timeout behavior, so it lives here
+in one place: a 10s request timeout and exponential backoff on transport errors /
+429 / 5xx via tenacity. 4xx (other than 429) fails fast.
 """
 
 from __future__ import annotations

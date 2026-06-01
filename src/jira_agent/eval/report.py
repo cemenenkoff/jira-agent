@@ -1,7 +1,8 @@
-"""Score EvalRecords into rubric metrics and render CSV + Markdown reports.
+"""Score EvalRecords into metrics and render CSV + Markdown reports.
 
-The rubric weights a false positive (resolving a DEFER ticket) at ~3x a missed
-RESOLVE, so `weighted_error` reflects that asymmetry directly.
+We weight a false positive (resolving a DEFER ticket) at ~3x a missed RESOLVE —
+auto-answering a sensitive ticket is worse than missing an easy one — so
+`weighted_error` reflects that asymmetry directly.
 """
 
 from __future__ import annotations

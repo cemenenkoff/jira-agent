@@ -45,6 +45,9 @@ reports/*.md
 !reports/.gitkeep
 tmp/
 
+# --- Source material kept local, not published ---
+input/
+
 # --- Editor / OS ---
 .vscode/
 .idea/

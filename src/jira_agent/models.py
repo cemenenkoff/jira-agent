@@ -20,7 +20,7 @@ class ActionType(StrEnum):
 
 
 class ReasonCode(StrEnum):
-    """Why a ticket was deferred to a human. Matches the assignment's standard list."""
+    """Why a ticket was deferred to a human. The standard set of deferral reason codes."""
 
     OUT_OF_SCOPE = "OUT_OF_SCOPE"
     ACTIVE_INCIDENT = "ACTIVE_INCIDENT"

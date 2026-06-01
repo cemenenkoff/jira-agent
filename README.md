@@ -6,8 +6,8 @@ policy section — and **defers** everything else to a human with a structured r
 The 10 IT policies are the *only* authorized knowledge source; the agent refuses to answer
 from prior knowledge.
 
-> Jira ticketing agent learning lab. Brief in [`input/`](input/); eval report in
-> [`docs/eval_report.md`](docs/eval_report.md).
+> A self-directed learning lab: a grounded Jira ticketing agent built around 10 fixed IT
+> policies and a 50-ticket benchmark. Eval report in [`docs/eval_report.md`](docs/eval_report.md).
 
 ## Results
 

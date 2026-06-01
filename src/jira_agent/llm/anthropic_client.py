@@ -1,6 +1,6 @@
 """Anthropic-backed LLMClient.
 
-The policy corpus / triage rubric is large and static, so the system block is
+The policy corpus / triage instructions are large and static, so the system block is
 marked for prompt caching — every ticket after the first reuses the cached
 prefix, cutting cost and latency.
 """

@@ -48,6 +48,10 @@ tmp/
 # --- Source material kept local, not published ---
 input/
 
+# --- Personal demo prep (kept local) ---
+docs/LOOM_OUTLINE.md
+docs/LOOM_SCRIPT.md
+
 # --- Editor / OS ---
 .vscode/
 .idea/

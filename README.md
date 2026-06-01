@@ -9,6 +9,22 @@ from prior knowledge.
 > A self-directed learning lab: a grounded Jira ticketing agent built around 10 fixed IT
 > policies and a 50-ticket benchmark. Eval report in [`docs/eval_report.md`](docs/eval_report.md).
 
+## Demo
+
+<!-- Demo video — docs/media/jira-agent-demo.mov. Two ways to embed; pick one:
+  A) Commit the file at docs/media/jira-agent-demo.mov — the <video> tag below renders it from
+     the raw URL. Keep it modest in size (a large .mov bloats the repo; compress to H.264 .mp4
+     or use Git LFS for anything big).
+  B) No binary in the repo (better for large files): on github.com, edit this README and drag-
+     and-drop the video into the editor. GitHub uploads it and inserts a
+     https://github.com/user-attachments/assets/... URL that renders a player — use that here. -->
+
+<video src="https://github.com/cemenenkoff/jira-agent/raw/main/docs/media/jira-agent-demo.mov" controls width="100%"></video>
+
+▶️ **[Watch the demo](docs/media/jira-agent-demo.mov)** — a ~5-minute walkthrough: the agent
+resolving a live ticket with a cited policy section, and deferring incidents and prompt-injection
+attempts to a human.
+
 ## Results
 
 End-to-end run against a live Jira project (`jira-agent eval-live`, semantic embeddings,

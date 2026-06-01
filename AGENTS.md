@@ -35,7 +35,7 @@ src/jira_agent/
   eval/            harness.py (offline) · live.py (against real Jira) · report.py (metrics + CSV/MD)
   runner.py        AgentRunner poll loop · cli.py  (typer: policies|seed|run|eval|eval-live)
 tests/             pytest suite; fakes.py (FakeLLM, FakeRetriever, FakeJira)
-docs/              eval_report.{md,csv} (snapshot) · LOOM_SCRIPT.md · LOOM_OUTLINE.md
+docs/              eval_report.{md,csv} (snapshot) · adr/ (decision records) · media/ (demo video)
 reports/           generated eval output (git-ignored)
 ```
 
@@ -92,14 +92,14 @@ uv run jira-agent policies | seed | run [--once] | eval | eval-live
 **State:** feature-complete and working end-to-end against live Jira. Latest `eval-live`
 (embeddings, `claude-sonnet-4-6`): action **50/50**, DEFER **25/25**, **0 false positives**,
 RESOLVE **21/25 exact / 24/25 required-citation**, weighted_error **0**. Full per-ticket results:
-[`docs/eval_report.md`](docs/eval_report.md). Suite currently 48 tests; ruff + mypy clean.
+[`docs/eval_report.md`](docs/eval_report.md). Suite currently 49 tests; ruff + mypy clean.
 
 **Done:** policies + eval set, full pipeline (triage/retrieve/ground/verify), TF-IDF + embeddings
 retrievers, Jira client/seed/actions, offline + live eval, README (≤2pp), eval-report snapshot,
-Loom script.
+and a demo-video embed in the README.
 
-**Next / open:** user records the actual Loom (`docs/LOOM_SCRIPT.md`); confirm the README Mermaid
-diagram renders on GitHub.
+**Next / open:** user records the demo video (`docs/media/jira-agent-demo.mov`); confirm the
+README Mermaid diagram renders on GitHub.
 
 **Key decisions (with reasoning):**
 - *Restraint is asymmetric* (we weight a false-positive resolve ~3× a missed resolve) → bias

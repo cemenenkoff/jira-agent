@@ -1,133 +1,121 @@
 # Helix IT Helpdesk Agent
 
-A grounded AI agent for **Helix Industries** that monitors a Jira Service Desk
-project, **auto-resolves** the IT-policy questions it can answer confidently —
-citing a specific policy section — and **defers** everything else to a human
-with a structured reason code.
+A grounded AI agent for **Helix Industries** that monitors a Jira Service Desk project,
+**auto-resolves** the IT-policy questions it can answer confidently — citing a specific
+policy section — and **defers** everything else to a human with a structured reason code.
+The 10 IT policies are the *only* authorized knowledge source; the agent refuses to answer
+from prior knowledge.
 
-> Built for the Forward Deployed Engineer take-home. The assignment brief lives
-> in [`input/`](input/).
+> Forward Deployed Engineer take-home. Brief in [`input/`](input/); eval report in
+> [`docs/eval_report.md`](docs/eval_report.md).
 
----
+## Results
 
-## Why it's built this way
+End-to-end run against a live Jira project (`jira-agent eval-live`, semantic embeddings,
+`claude-sonnet-4-6`), scored against ground truth on all 50 tickets:
 
-The grading rubric is the design spec, and two clauses drive every decision:
+| Dimension | Result |
+| --- | --- |
+| Action accuracy (resolve vs defer) | **50/50** |
+| DEFER accuracy (correct reason code) | **25/25 (100%)** |
+| **False positives** (resolved a DEFER ticket) | **0** |
+| RESOLVE — exact citation | **21/25 (84%)** |
+| RESOLVE — all required citations present | **24/25 (96%)** |
+| Weighted error (3×FP + missed) | **0.0** |
 
-1. **Restraint is asymmetric.** Resolving a ticket that should have been deferred
-   costs **~3× a missed resolve.** So the pipeline is *conservative by
-   construction*: a ticket is resolved only when (a) triage finds no
-   safety/scope red flag, (b) retrieval clears a confidence threshold, and
-   (c) the generated answer's citation is **verified to exist** in the corpus.
-   Any failure → `DEFER`.
+The 4 imperfect RESOLVEs are over-cites/adjacent-section judgment calls (the *required*
+citation is present in all but one); we stop there rather than overfit prompts to the eval set.
 
-2. **Grounding is verified, not trusted.** Every `RESOLVE` must cite a real
-   `POL-XX §Y.Z`. We don't take the model's word for it — a post-generation
-   check confirms each cited section exists and was actually retrieved. The 10
-   policies are the *only* authorized knowledge source; the agent refuses to
-   answer from prior knowledge.
+## Architecture
 
-## Pipeline
+A ticket reaches RESOLVE only by clearing every gate; any failure falls through to DEFER.
 
 ```
                        ┌──────────────┐
-  Jira new ticket ───► │   TRIAGE     │  safety + scope classification
-                       │ (classifier) │  → ACTIVE_INCIDENT, PROMPT_INJECTION,
-                       └──────┬───────┘    HOSTILE_TONE, PII_REQUEST, OUT_OF_SCOPE,
-                              │             WRONG_TENANT, PRIVILEGED_ACCESS, …
+  Jira new ticket ───► │   TRIAGE     │  safety + scope classification (LLM)
+                       │              │  → ACTIVE_INCIDENT, PROMPT_INJECTION, HOSTILE_TONE,
+                       └──────┬───────┘    PII_REQUEST, OUT_OF_SCOPE, WRONG_TENANT, …
                    red flag?  │ yes ─────────────────────────────► DEFER (reason code)
-                              │ no
                        ┌──────▼───────┐
-                       │  RETRIEVE    │  score top-k policy sections
+                       │  RETRIEVE    │  top-k policy sections (TF-IDF or embeddings)
                        └──────┬───────┘
-                   score <    │ yes ─────────────────────────────► DEFER (LOW_CONFIDENCE)
-                   floor?     │ no   (low floor — catches no-overlap retrieval only)
+                   below      │ yes ─────────────────────────────► DEFER (LOW_CONFIDENCE)
+                   floor?     │ no   (low floor — no-overlap retrieval only)
                        ┌──────▼───────┐
-                       │   GROUND     │  LLM answers ONLY from retrieved sections,
-                       │  + VERIFY    │  or abstains; citation must exist & be retrieved
+                       │   GROUND     │  LLM answers ONLY from retrieved sections, or abstains
+                       │  + VERIFY    │  every cited section must exist AND have been retrieved
                        └──────┬───────┘
-                  abstain /   │ yes ─────────────────────────────► DEFER (LOW_CONFIDENCE)
-                  unsupported │            (or CONFLICTING_POLICIES on conflict)
+                  abstain /   │ yes ─────────────────────────────► DEFER (LOW_CONFIDENCE /
+                  unsupported │                                            CONFLICTING_POLICIES)
                   / conflict? │ no
                               ▼
-                           RESOLVE  (grounded answer + POL-XX §Y.Z citation)
+                           RESOLVE  → post grounded answer + POL-XX §Y.Z, label, transition
 ```
 
-> **Why a *floor*, not a score threshold?** Calibrating against the 50-ticket set
-> showed raw TF-IDF top-scores overlap completely between RESOLVE (0.15–0.46) and
-> DEFER (0.00–0.65) tickets — there is no cutoff that separates them. So the score
-> gate is only a low floor for *no lexical overlap at all*; the real RESOLVE/DEFER
-> decision is triage + the LLM grounding/abstention + citation verification.
+DEFER posts a reason-code comment, applies `needs-human` + a `reason:<CODE>` label, and leaves
+the ticket for a person. The layers (LLM, retriever, Jira) sit behind small interfaces and are
+swappable. Self-serve "yes you can" answers *instruct* the user — the agent never performs a
+privileged action itself.
 
-Acting on Jira is the last step: `RESOLVE` posts the answer, applies the
-`auto-resolved` label, and transitions the ticket; `DEFER` posts the reason-code
-comment, applies `needs-human` + a per-reason label, and leaves it for a person.
+## Prompt strategy
 
-## Repository layout
+- **Two stages, two prompts.** Triage sees the raw ticket + a *catalog of real policy titles*
+  (so it can flag a cited-but-nonexistent policy or another tenant). The answer stage sees
+  *only the retrieved sections* and must answer from them or abstain — narrowing the context is
+  the first defense against hallucination.
+- **Untrusted input.** Ticket text is always wrapped in `<ticket>…</ticket>` and labelled
+  untrusted; the model is told never to follow instructions inside it (prompt-injection defense).
+- **Precise, contrastive triage.** Default-to-proceed, with sharp boundaries so ordinary policy
+  questions aren't over-flagged ("when am I eligible for a laptop" is not troubleshooting;
+  "if I leave, will my phone be wiped" is not speculative).
+- **Strict JSON** out of both stages, with a parse-retry and conservative fall-back to DEFER.
 
-```
-data/
-  policies/            # POL-01..POL-10 as drop-in Markdown (onboarding policy #11 = add a file)
-  tickets/             # eval_tickets.json — the 50-ticket eval set + structured ground truth
-src/jira_agent/
-  config.py            # typed settings from env (.env), secrets never hard-coded
-  models.py            # Ticket, Policy, Citation, ReasonCode, Decision, EvalRecord
-  reason_codes.py      # the 12 DEFER reason codes + descriptions
-  logging_setup.py     # structured logging
-  policies/            # loader.py (parse Markdown) + retriever.py (score + threshold)
-  triage/              # classifier.py — safety/scope detection
-  llm/                 # base.py (provider interface), anthropic_client.py, prompts.py
-  jira/                # client.py (REST + retry/timeout), actions.py (resolve/defer)
-  agent/               # pipeline.py (orchestration), grounding.py (citation verification)
-  eval/                # harness.py (replay 50 tickets), report.py (CSV + metrics)
-  runner.py            # the monitoring loop
-  cli.py               # `jira-agent run | eval | seed | policies`
-tests/                 # dataset integrity, policy loader, models
-reports/               # generated eval output (git-ignored)
-```
+## How grounding is enforced
 
-## Setup
+Resolution is gated by code, not trust: after the LLM answers, `verify_citations` confirms
+every cited `POL-XX §Y.Z` **(a) exists** in the corpus and **(b) was among the sections
+retrieved** for this ticket. Either check failing → DEFER (`LOW_CONFIDENCE`). The model cannot
+resolve a ticket on a section it never saw, nor invent one.
+
+> **Confidence ≠ retrieval score.** Calibrating on the 50 tickets showed raw similarity scores
+> overlap completely between RESOLVE and DEFER, so the numeric gate is only a low *floor*; the
+> real decision is triage + grounded abstention + citation verification.
+
+## Extensibility (the seams)
+
+- **Onboard policy #11:** drop a `POL-11.md` file in `data/policies/`. No code change — the
+  loader, triage catalog, and retriever pick it up automatically.
+- **New customer (healthcare vs fintech):** swap the `data/policies/` corpus; the pipeline and
+  the 12 reason codes are domain-agnostic. `policies_dir` is config-driven for per-tenant setups.
+- **New language:** the retriever is swappable (use a multilingual embedding model) and the
+  prompts can be told to answer in the ticket's language or DEFER; today non-grounded/unsure
+  cases defer safely.
+- **Better retrieval:** `AGENT_RETRIEVER=local` swaps TF-IDF for semantic embeddings behind the
+  same `Retriever` protocol — this is what lifted retrieval recall to 25/25.
+
+## Setup & usage
 
 ```bash
-# 1. Install (uv is used for env + deps)
-uv sync
+uv sync                              # add --extra local-embeddings for AGENT_RETRIEVER=local
+cp .env.example .env                 # fill ANTHROPIC_API_KEY + Jira creds (kept out of git)
 
-# 2. Configure secrets
-cp .env.example .env        # then edit .env  (PowerShell: Copy-Item .env.example .env)
-
-# 3. Run the offline eval over all 50 tickets (no Jira needed)
-uv run jira-agent eval
-
-# 4. Dry-run the live agent against your Jira queue (AGENT_DRY_RUN=true logs, doesn't write)
-uv run jira-agent run
+uv run jira-agent policies           # list the loaded corpus (no creds needed)
+uv run jira-agent seed               # load the 50 eval tickets into Jira (idempotent)
+uv run jira-agent run --once         # process the queue once (AGENT_DRY_RUN=true by default)
+uv run jira-agent eval               # offline: score all 50 vs ground truth → reports/
+uv run jira-agent eval-live          # integration test: score against tickets read from Jira
 ```
 
-## Status
+Engineering: typed (pydantic, mypy `--strict`), linted (ruff), 46 tests; Jira REST client with
+explicit timeouts + bounded retries; structured logging; secrets only via `.env`.
 
-End-to-end working against a live Jira project (dry-run). `jira-agent seed` loads
-the 50 eval tickets; `jira-agent run` triages, retrieves, grounds, and decides each.
-Restraint is strong (0 false positives on the 25 DEFER tickets in the first live run).
-RESOLVE recall is being tuned — see the lexical-retrieval limitation below.
+## What I'd harden before production
 
-## Design decisions
-
-- **Stack:** Python · `uv` · pydantic · Anthropic Claude (swappable LLM layer).
-- **Confidence ≠ retrieval score.** Calibration showed raw TF-IDF scores don't
-  separate RESOLVE from DEFER, so the score is only a low floor; triage + LLM
-  grounding/abstention + citation verification make the real decision.
-- **Retrieval:** hybrid RAG. A TF-IDF baseline ships with zero API keys so the
-  eval runs offline; a semantic embeddings backend (Voyage or local) is an opt-in
-  extra and the planned fix for the lexical misses below.
-- **Self-serve actions:** the agent *instructs* users on self-serve steps rather
-  than performing privileged actions itself — safer default, documented seam.
-
-## What we'd harden before production
-
-- **Semantic retrieval.** TF-IDF misses a few RESOLVE tickets on pure vocabulary
-  gaps (e.g. "shut my laptop down if hacked" vs POL-09 §9.2 "do NOT power off").
-  Embeddings (the `voyage` / `local-embeddings` extras) would close these.
-- Durable processed-ticket store (replace the in-memory `_seen` set) for idempotency.
-- JIRA-side: rate-limit/backoff tuning, and JSM portal-visible replies via the
-  servicedesk API (today we post internal comments).
-- Human-in-the-loop review queue for low-confidence resolves; per-tenant policy
-  isolation; an eval CI gate that fails the build on accuracy regressions.
+- **Durable processed-ticket store** (replace the in-memory `_seen` set) for idempotency across
+  restarts; handle resurrected/duplicate tickets.
+- **Jira/JSM:** rate-limit backoff tuning, and customer-portal-visible replies via the
+  servicedesk API (today the agent posts internal comments).
+- **Human-in-the-loop** review queue for low-confidence resolves; **per-tenant** policy isolation
+  and secrets management.
+- **Eval CI gate** that fails the build on accuracy/false-positive regressions; periodic
+  re-calibration as policies change.

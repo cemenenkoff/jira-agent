@@ -5,7 +5,7 @@ description = "Grounded AI agent that auto-resolves or defers IT helpdesk ticket
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [{ name = "Nick" }]
+authors = [{ name = "Nick Cemenenkoff", email = "cemenenkoff@gmail.com" }]
 
 dependencies = [
     # Domain models & typed config

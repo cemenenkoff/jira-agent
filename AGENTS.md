@@ -65,8 +65,8 @@ uv run jira-agent policies | seed | run [--once] | eval | eval-live
   swappable backends. Match existing module style.
 - **Secrets only via `.env`** (git-ignored) — never hard-code.
 - Commits: imperative subject + a "why" body, ending with the trailer
-  `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`. Work happens on `main`
-  (solo private repo, `github.com/cemenenkoff/jira-agent`). **Ask before every `git push`.**
+  `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`. Work happens on `main`.
+  **Ask before every `git push`.**
 
 ## 5. Gotchas
 
@@ -85,7 +85,7 @@ uv run jira-agent policies | seed | run [--once] | eval | eval-live
   `labels IS EMPTY OR labels NOT IN (...)` so hand-filed (label-less) tickets are seen.
 - Seeded tickets carry an `eval-<id>` label (used by `eval-live` to join to ground truth); `seed`
   is idempotent. Live project key is `ITSD`.
-- `git-filter-repo` is installed at `C:\Users\Nick\.local\bin` (prepend to PATH to use it).
+- History rewrites use `git-filter-repo` (`uv tool install git-filter-repo`; ensure it's on PATH).
 
 ## 6. Current state & key decisions
 

@@ -41,17 +41,23 @@ The grading rubric is the design spec, and two clauses drive every decision:
                        │  RETRIEVE    │  score top-k policy sections
                        └──────┬───────┘
                    score <    │ yes ─────────────────────────────► DEFER (LOW_CONFIDENCE)
-                   threshold? │ no
+                   floor?     │ no   (low floor — catches no-overlap retrieval only)
                        ┌──────▼───────┐
-                       │   GROUND     │  LLM answers ONLY from retrieved sections
-                       │  + VERIFY    │  → citation must exist & be supported
+                       │   GROUND     │  LLM answers ONLY from retrieved sections,
+                       │  + VERIFY    │  or abstains; citation must exist & be retrieved
                        └──────┬───────┘
-                  unsupported │ yes ─────────────────────────────► DEFER (LOW_CONFIDENCE)
-                  / conflict? │            (or CONFLICTING_POLICIES)
-                              │ no
+                  abstain /   │ yes ─────────────────────────────► DEFER (LOW_CONFIDENCE)
+                  unsupported │            (or CONFLICTING_POLICIES on conflict)
+                  / conflict? │ no
                               ▼
                            RESOLVE  (grounded answer + POL-XX §Y.Z citation)
 ```
+
+> **Why a *floor*, not a score threshold?** Calibrating against the 50-ticket set
+> showed raw TF-IDF top-scores overlap completely between RESOLVE (0.15–0.46) and
+> DEFER (0.00–0.65) tickets — there is no cutoff that separates them. So the score
+> gate is only a low floor for *no lexical overlap at all*; the real RESOLVE/DEFER
+> decision is triage + the LLM grounding/abstention + citation verification.
 
 Acting on Jira is the last step: `RESOLVE` posts the answer, applies the
 `auto-resolved` label, and transitions the ticket; `DEFER` posts the reason-code
@@ -98,20 +104,30 @@ uv run jira-agent run
 
 ## Status
 
-🚧 **Scaffolding.** Data layer (policies + eval set), domain models, config, and
-module interfaces are in place; the triage / retrieval / grounding / Jira logic
-is stubbed and filled in next. See module `TODO`s for the seams.
+End-to-end working against a live Jira project (dry-run). `jira-agent seed` loads
+the 50 eval tickets; `jira-agent run` triages, retrieves, grounds, and decides each.
+Restraint is strong (0 false positives on the 25 DEFER tickets in the first live run).
+RESOLVE recall is being tuned — see the lexical-retrieval limitation below.
 
-## Design decisions (so far)
+## Design decisions
 
 - **Stack:** Python · `uv` · pydantic · Anthropic Claude (swappable LLM layer).
+- **Confidence ≠ retrieval score.** Calibration showed raw TF-IDF scores don't
+  separate RESOLVE from DEFER, so the score is only a low floor; triage + LLM
+  grounding/abstention + citation verification make the real decision.
 - **Retrieval:** hybrid RAG. A TF-IDF baseline ships with zero API keys so the
-  eval runs offline; an embeddings backend (Voyage or local) is an opt-in extra.
+  eval runs offline; a semantic embeddings backend (Voyage or local) is an opt-in
+  extra and the planned fix for the lexical misses below.
 - **Self-serve actions:** the agent *instructs* users on self-serve steps rather
   than performing privileged actions itself — safer default, documented seam.
 
 ## What we'd harden before production
 
-Tracked in the README's final section as the build progresses (idempotency &
-dedup of tickets, secret management, JIRA API rate-limit/backoff, human-in-the-loop
-review of low-confidence resolves, per-tenant policy isolation, eval CI gate).
+- **Semantic retrieval.** TF-IDF misses a few RESOLVE tickets on pure vocabulary
+  gaps (e.g. "shut my laptop down if hacked" vs POL-09 §9.2 "do NOT power off").
+  Embeddings (the `voyage` / `local-embeddings` extras) would close these.
+- Durable processed-ticket store (replace the in-memory `_seen` set) for idempotency.
+- JIRA-side: rate-limit/backoff tuning, and JSM portal-visible replies via the
+  servicedesk API (today we post internal comments).
+- Human-in-the-loop review queue for low-confidence resolves; per-tenant policy
+  isolation; an eval CI gate that fails the build on accuracy regressions.

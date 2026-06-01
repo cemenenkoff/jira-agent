@@ -21,6 +21,14 @@ def test_extract_json_with_surrounding_prose() -> None:
     assert extract_json(raw)["answer"] == "x"
 
 
+def test_extract_json_ignores_trailing_prose() -> None:
+    # The T-045 failure mode: a valid object followed by extra prose (with braces).
+    raw = '{"reason_code": null, "rationale": "no scenario given"}\n\nNote: check {the policy}.'
+    result = extract_json(raw)
+    assert result["reason_code"] is None
+    assert result["rationale"] == "no scenario given"
+
+
 def test_extract_rejects_non_object() -> None:
     with pytest.raises(JsonParseError):
         extract_json("[1, 2, 3]")

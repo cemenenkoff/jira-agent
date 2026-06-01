@@ -23,11 +23,13 @@ def extract_json(text: str) -> dict[str, Any]:
     try:
         obj = json.loads(stripped)
     except json.JSONDecodeError:
-        start, end = stripped.find("{"), stripped.rfind("}")
-        if start == -1 or end == -1 or end <= start:
+        # Fall back to decoding the first {...} object and ignoring any trailing prose
+        # the model appended after it (raw_decode stops at the end of the first value).
+        start = stripped.find("{")
+        if start == -1:
             raise JsonParseError(f"no JSON object in model output: {text[:200]!r}") from None
         try:
-            obj = json.loads(stripped[start : end + 1])
+            obj, _ = json.JSONDecoder().raw_decode(stripped[start:])
         except json.JSONDecodeError as exc:
             raise JsonParseError(f"invalid JSON in model output: {exc}") from exc
     if not isinstance(obj, dict):

@@ -41,6 +41,7 @@ class AgentPipeline:
         self._llm = llm
         self._corpus = corpus
         self._threshold = settings.agent_confidence_threshold
+        self._retrieval_k = settings.agent_retrieval_k
 
     def process(self, ticket: Ticket) -> Decision:
         # 1. Safety / scope triage. Any red flag => DEFER immediately.
@@ -53,8 +54,8 @@ class AgentPipeline:
                 rationale=triage.rationale,
             )
 
-        # 2. Retrieve + confidence gate.
-        retrieved = self._retriever.retrieve(ticket.body, k=5)
+        # 2. Retrieve + confidence floor.
+        retrieved = self._retriever.retrieve(ticket.body, k=self._retrieval_k)
         top = retrieved[0].score if retrieved else 0.0
         if top < self._threshold:
             return self._defer_low_confidence(

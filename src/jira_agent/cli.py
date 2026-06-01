@@ -75,8 +75,12 @@ def run_eval() -> None:
 
 
 @app.command()
-def run() -> None:
-    """Start the live monitoring loop against the configured Jira project."""
+def run(
+    once: bool = typer.Option(
+        False, "--once", help="Process the queue a single time and exit (no polling loop)."
+    ),
+) -> None:
+    """Monitor the Jira project and act on new tickets (Ctrl+C to stop; --once for one pass)."""
     settings = get_settings()
     configure_logging(settings.log_level, settings.log_format)
     corpus = _corpus(settings)
@@ -98,7 +102,11 @@ def run() -> None:
             actions=TicketActions(jira, settings),
             settings=settings,
         )
-        runner.run_forever()
+        if once:
+            processed = runner.poll_once()
+            console.print(f"[green]Processed {processed} ticket(s).[/green]")
+        else:
+            runner.run_forever()
 
 
 @app.command()

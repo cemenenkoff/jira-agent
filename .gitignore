@@ -43,6 +43,7 @@ coverage.xml
 reports/*.csv
 reports/*.md
 !reports/.gitkeep
+tmp/
 
 # --- Editor / OS ---
 .vscode/

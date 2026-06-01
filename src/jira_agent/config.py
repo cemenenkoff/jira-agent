@@ -24,7 +24,13 @@ class Settings(BaseSettings):
     jira_project_key: str = "ITSD"
 
     # ── Agent behavior ───────────────────────────────────────────────
-    agent_confidence_threshold: float = 0.45
+    # A LOW floor, not the primary gate: raw TF-IDF scores don't separate
+    # resolve-able from defer-able tickets (they overlap), so the real
+    # confidence comes from the LLM grounding + citation verification. This
+    # only catches near-zero retrieval (no lexical overlap at all).
+    agent_confidence_threshold: float = 0.05
+    # How many policy sections to retrieve and show the answering LLM.
+    agent_retrieval_k: int = 8
     agent_poll_interval_seconds: int = 30
     agent_dry_run: bool = True
     agent_resolved_label: str = "auto-resolved"

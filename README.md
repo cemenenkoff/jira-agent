@@ -30,27 +30,30 @@ citation is present in all but one); we stop there rather than overfit prompts t
 
 A ticket reaches RESOLVE only by clearing every gate; any failure falls through to DEFER.
 
+```mermaid
+flowchart TD
+    A([New Jira ticket]) --> T{"Triage<br/>safety &amp; scope (LLM)"}
+    T -->|"red flag"| D["DEFER<br/>reason code"]
+    T -->|"clean"| R["Retrieve top-k<br/>policy sections<br/>(TF-IDF or embeddings)"]
+    R --> F{"Score below<br/>floor?"}
+    F -->|"yes"| D
+    F -->|"no"| G{"Ground &amp; verify<br/>answer only from<br/>retrieved sections"}
+    G -->|"abstain / unsupported<br/>citation / conflict"| D
+    G -->|"grounded &amp; verified"| RES["RESOLVE<br/>cite POL-XX §Y.Z"]
+    RES --> AR["Comment · auto-resolved label<br/>· transition to Resolved"]
+    D --> HU["Comment · needs-human<br/>· reason:CODE label · route to human"]
+
+    classDef resolve fill:#dcfce7,stroke:#16a34a,color:#14532d;
+    classDef defer fill:#fef3c7,stroke:#d97706,color:#7c2d12;
+    classDef gate fill:#e0f2fe,stroke:#0284c7,color:#0c4a6e;
+    class RES,AR resolve;
+    class D,HU defer;
+    class T,F,G gate;
 ```
-                       ┌──────────────┐
-  Jira new ticket ───► │   TRIAGE     │  safety + scope classification (LLM)
-                       │              │  → ACTIVE_INCIDENT, PROMPT_INJECTION, HOSTILE_TONE,
-                       └──────┬───────┘    PII_REQUEST, OUT_OF_SCOPE, WRONG_TENANT, …
-                   red flag?  │ yes ─────────────────────────────► DEFER (reason code)
-                       ┌──────▼───────┐
-                       │  RETRIEVE    │  top-k policy sections (TF-IDF or embeddings)
-                       └──────┬───────┘
-                   below      │ yes ─────────────────────────────► DEFER (LOW_CONFIDENCE)
-                   floor?     │ no   (low floor — no-overlap retrieval only)
-                       ┌──────▼───────┐
-                       │   GROUND     │  LLM answers ONLY from retrieved sections, or abstains
-                       │  + VERIFY    │  every cited section must exist AND have been retrieved
-                       └──────┬───────┘
-                  abstain /   │ yes ─────────────────────────────► DEFER (LOW_CONFIDENCE /
-                  unsupported │                                            CONFLICTING_POLICIES)
-                  / conflict? │ no
-                              ▼
-                           RESOLVE  → post grounded answer + POL-XX §Y.Z, label, transition
-```
+
+Reason codes the agent can assign: `ACTIVE_INCIDENT`, `PROMPT_INJECTION`, `HOSTILE_TONE`,
+`PII_REQUEST`, `OUT_OF_SCOPE`, `WRONG_TENANT`, `WRONG_INTENT`, `PRIVILEGED_ACCESS`,
+`SPECULATIVE`, `NONEXISTENT_POLICY`, `LOW_CONFIDENCE`, `CONFLICTING_POLICIES`.
 
 DEFER posts a reason-code comment, applies `needs-human` + a `reason:<CODE>` label, and leaves
 the ticket for a person. The layers (LLM, retriever, Jira) sit behind small interfaces and are

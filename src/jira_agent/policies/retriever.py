@@ -89,7 +89,14 @@ def build_retriever(settings: Settings, corpus: PolicyCorpus) -> Retriever:
     if kind == "tfidf":
         return TfidfRetriever(corpus)
     if kind in {"local", "local-embeddings", "embeddings"}:
-        return LocalEmbeddingRetriever(corpus, settings.agent_embedding_model)
+        try:
+            return LocalEmbeddingRetriever(corpus, settings.agent_embedding_model)
+        except ImportError as exc:
+            raise RuntimeError(
+                "AGENT_RETRIEVER=local needs the embeddings extra. Run "
+                "`uv sync --extra local-embeddings`, or set AGENT_RETRIEVER=tfidf for a "
+                "PyTorch-free run."
+            ) from exc
     raise ValueError(
         f"Unknown AGENT_RETRIEVER={settings.agent_retriever!r} (use 'tfidf' or 'local')"
     )

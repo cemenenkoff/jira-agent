@@ -23,6 +23,11 @@ def test_empty_query_returns_nothing(corpus: PolicyCorpus) -> None:
     assert TfidfRetriever(corpus).retrieve("   ") == []
 
 
+def test_default_retriever_is_local() -> None:
+    # The shipped default leads with the best (semantic embeddings) retriever.
+    assert Settings.model_fields["agent_retriever"].default == "local"
+
+
 def test_build_retriever_tfidf(corpus: PolicyCorpus) -> None:
     retriever = build_retriever(Settings(agent_retriever="tfidf"), corpus)
     assert isinstance(retriever, TfidfRetriever)

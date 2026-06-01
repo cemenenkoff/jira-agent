@@ -96,7 +96,8 @@ resolve a ticket on a section it never saw, nor invent one.
 ## Setup & usage
 
 ```bash
-uv sync                              # add --extra local-embeddings for AGENT_RETRIEVER=local
+uv sync --extra local-embeddings     # default retriever is semantic embeddings (AGENT_RETRIEVER=local)
+                                     # PyTorch-free? plain `uv sync` + set AGENT_RETRIEVER=tfidf
 cp .env.example .env                 # fill ANTHROPIC_API_KEY + Jira creds (kept out of git)
 
 uv run jira-agent policies           # list the loaded corpus (no creds needed)

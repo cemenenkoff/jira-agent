@@ -31,9 +31,10 @@ class Settings(BaseSettings):
     agent_confidence_threshold: float = 0.05
     # How many policy sections to retrieve and show the answering LLM.
     agent_retrieval_k: int = 8
-    # Which retriever to use: "tfidf" (offline, no extra deps) or "local"
-    # (semantic embeddings via sentence-transformers; needs the local-embeddings extra).
-    agent_retriever: str = "tfidf"
+    # Which retriever to use: "local" (semantic embeddings via sentence-transformers;
+    # needs the local-embeddings extra — the default, best accuracy) or "tfidf"
+    # (lexical baseline, no extra deps, for a PyTorch-free install).
+    agent_retriever: str = "local"
     agent_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     agent_poll_interval_seconds: int = 30
     agent_dry_run: bool = True

@@ -1,6 +1,8 @@
-"""Test doubles for the LLM and retriever, so the pipeline can be exercised offline."""
+"""Test doubles for the LLM, retriever, and Jira client, so the agent runs offline."""
 
 from __future__ import annotations
+
+from typing import Any
 
 from jira_agent.models import RetrievedSection
 
@@ -49,3 +51,47 @@ class FakeRetriever:
 
     def retrieve(self, query: str, k: int = 5) -> list[RetrievedSection]:
         return self._results[:k]
+
+
+class FakeJira:
+    """In-memory Jira double for seeding tests."""
+
+    def __init__(
+        self,
+        *,
+        issue_types: list[dict[str, Any]] | None = None,
+        existing: list[dict[str, Any]] | None = None,
+    ) -> None:
+        self._issue_types = (
+            issue_types
+            if issue_types is not None
+            else [{"name": "Service Request"}, {"name": "Task"}, {"name": "Incident"}]
+        )
+        self._existing = existing or []
+        self.created: list[dict[str, Any]] = []
+
+    def get_project_issue_types(self, project_key: str) -> list[dict[str, Any]]:
+        return self._issue_types
+
+    def search(self, jql: str, max_results: int = 50) -> list[dict[str, Any]]:
+        return self._existing
+
+    def create_issue(
+        self,
+        *,
+        project_key: str,
+        summary: str,
+        description: str,
+        issue_type: str,
+        labels: list[str] | None = None,
+    ) -> dict[str, Any]:
+        key = f"{project_key}-{len(self.created) + 1}"
+        record = {
+            "key": key,
+            "summary": summary,
+            "description": description,
+            "issue_type": issue_type,
+            "labels": labels or [],
+        }
+        self.created.append(record)
+        return {"key": key, "fields": {"summary": summary, "labels": labels or []}}

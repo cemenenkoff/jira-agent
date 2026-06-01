@@ -102,10 +102,43 @@ def run() -> None:
 
 
 @app.command()
-def seed() -> None:
-    """Create the 50 sample tickets in the Jira project (for demo/eval setup)."""
-    console.print("[yellow]Not implemented yet[/yellow] — will create the eval tickets in Jira.")
-    raise typer.Exit(code=1)
+def seed(
+    issue_type: str = typer.Option("Service Request", "--issue-type", help="Issue type to create."),
+    limit: int = typer.Option(0, "--limit", help="Only seed the first N tickets (0 = all)."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Preview without creating issues."),
+) -> None:
+    """Load the 50 eval tickets into the Jira project (idempotent; re-runs skip existing)."""
+    settings = get_settings()
+    configure_logging(settings.log_level, settings.log_format)
+    from .eval.harness import load_eval_tickets
+    from .jira.client import JiraClient
+    from .jira.seed import seed_tickets
+
+    tickets = load_eval_tickets(settings.tickets_file)
+    try:
+        jira_cm = JiraClient(settings)
+    except RuntimeError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
+
+    with jira_cm as jira:
+        result = seed_tickets(
+            jira,
+            project_key=settings.jira_project_key,
+            tickets=tickets,
+            issue_type=issue_type,
+            limit=limit,
+            dry_run=dry_run,
+        )
+
+    verb = "Would create" if result.dry_run else "Created"
+    console.print(
+        f"[green]{verb} {len(result.created)}[/green] issue(s) as "
+        f"[bold]{result.issue_type}[/bold] in {settings.jira_project_key}; "
+        f"skipped {len(result.skipped_existing)} already present."
+    )
+    for eval_id, key in result.created:
+        console.print(f"  {eval_id} -> {key or '(dry-run)'}")
 
 
 if __name__ == "__main__":

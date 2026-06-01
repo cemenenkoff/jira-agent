@@ -103,6 +103,31 @@ class JiraClient:
             json={"transition": {"id": transition_id}},
         )
 
+    def get_project_issue_types(self, project_key: str) -> list[dict[str, Any]]:
+        data = self._request("GET", f"/issue/createmeta/{project_key}/issuetypes").json()
+        # Tolerate both the paginated ("values") and legacy ("issueTypes") shapes.
+        items = data.get("values") or data.get("issueTypes") or []
+        return list(items)
+
+    def create_issue(
+        self,
+        *,
+        project_key: str,
+        summary: str,
+        description: str,
+        issue_type: str,
+        labels: list[str] | None = None,
+    ) -> dict[str, Any]:
+        fields: dict[str, Any] = {
+            "project": {"key": project_key},
+            "summary": summary,
+            "description": _adf(description),
+            "issuetype": {"name": issue_type},
+        }
+        if labels:
+            fields["labels"] = labels
+        return dict(self._request("POST", "/issue", json={"fields": fields}).json())
+
 
 def _adf(text: str) -> dict[str, Any]:
     """Wrap plain text (newline-separated) in Atlassian Document Format."""

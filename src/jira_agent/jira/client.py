@@ -70,19 +70,24 @@ class JiraClient:
     # ── read ─────────────────────────────────────────────────────────
     def search(self, jql: str, max_results: int = 50) -> list[dict[str, Any]]:
         # NOTE: Jira Cloud's current endpoint is POST /search/jql; older sites use /search.
-        resp = self._request(
-            "POST",
-            "/search/jql",
-            json={
+        # Paginate via nextPageToken so a queue larger than one page isn't silently truncated;
+        # stop once we have max_results or the server reports no further pages.
+        issues: list[dict[str, Any]] = []
+        next_token: str | None = None
+        while len(issues) < max_results:
+            payload: dict[str, Any] = {
                 "jql": jql,
-                "maxResults": max_results,
+                "maxResults": min(100, max_results - len(issues)),
                 "fields": ["summary", "description", "labels", "reporter", "status"],
-            },
-        )
-        return list(resp.json().get("issues", []))
-
-    def get_issue(self, issue_key: str) -> dict[str, Any]:
-        return dict(self._request("GET", f"/issue/{issue_key}").json())
+            }
+            if next_token:
+                payload["nextPageToken"] = next_token
+            data = self._request("POST", "/search/jql", json=payload).json()
+            issues.extend(data.get("issues", []))
+            next_token = data.get("nextPageToken")
+            if not next_token:
+                break
+        return issues[:max_results]
 
     def get_transitions(self, issue_key: str) -> list[dict[str, Any]]:
         data = self._request("GET", f"/issue/{issue_key}/transitions").json()

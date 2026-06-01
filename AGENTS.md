@@ -29,7 +29,7 @@ src/jira_agent/
                    LocalEmbeddingRetriever, build_retriever factory)
   triage/          classifier.py (TriageClassifier → reason code or None)
   llm/             base.py (LLMClient protocol) · anthropic_client.py · prompts.py · parsing.py
-  jira/            client.py (REST, retry/timeout) · actions.py (resolve/defer) · mapping.py
+  jira/            client.py (REST, retry/timeout) · actions.py (TicketActions: resolve/defer) · mapping.py
                    (issue→Ticket) · seed.py (idempotent ticket seeding)
   agent/           pipeline.py (orchestration) · grounding.py (verify_citations)
   eval/            harness.py (offline) · live.py (against real Jira) · report.py (metrics + CSV/MD)
@@ -91,14 +91,15 @@ uv run jira-agent policies | seed | run [--once] | eval | eval-live
 **State:** feature-complete and working end-to-end against live Jira. Latest `eval-live`
 (embeddings, `claude-sonnet-4-6`): action **50/50**, DEFER **25/25**, **0 false positives**,
 RESOLVE **21/25 exact / 24/25 required-citation**, weighted_error **0**. Full per-ticket results:
-[`docs/eval_report.md`](docs/eval_report.md). Suite currently 49 tests; ruff + mypy clean.
+[`docs/eval_report.md`](docs/eval_report.md). Suite currently 50 tests; ruff + mypy clean.
 
 **Done:** policies + eval set, full pipeline (triage/retrieve/ground/verify), TF-IDF + embeddings
 retrievers, Jira client/seed/actions, offline + live eval, README (≤2pp), eval-report snapshot,
 and a demo-video embed in the README.
 
-**Next / open:** user records the demo video (`docs/media/jira-agent-demo.mov`); confirm the
-README Mermaid diagram renders on GitHub.
+**Next / open:** nothing blocking. The demo video is recorded and committed at
+`docs/media/jira-agent-demo.mp4` (720p, ~9 MB) and embedded in the README; the Mermaid
+architecture diagram renders on GitHub.
 
 **Key decisions (with reasoning):**
 - *Restraint is asymmetric* (we weight a false-positive resolve ~3× a missed resolve) → bias

@@ -16,6 +16,16 @@ from ..models import EvalTicket
 log = get_logger("jira.seed")
 
 EVAL_LABEL_PREFIX = "eval-"
+
+
+def eval_id_from_issue(issue: dict[str, Any]) -> str | None:
+    """Return the eval-ticket id stamped on an issue via its ``eval-<id>`` label, or None."""
+    for label in issue.get("fields", {}).get("labels", []):
+        if isinstance(label, str) and label.startswith(EVAL_LABEL_PREFIX):
+            return label[len(EVAL_LABEL_PREFIX) :]
+    return None
+
+
 # Preference order when the requested issue type isn't available in the project.
 _ISSUE_TYPE_PREFERENCE = ("Service Request", "Task", "Incident", "Support")
 
@@ -102,9 +112,9 @@ def _resolve_issue_type(jira: _Jira, project_key: str, requested: str) -> str:
 def _existing_eval_ids(jira: _Jira, project_key: str) -> set[str]:
     ids: set[str] = set()
     for issue in jira.search(f'project = "{project_key}"', max_results=100):
-        for label in issue.get("fields", {}).get("labels", []):
-            if isinstance(label, str) and label.startswith(EVAL_LABEL_PREFIX):
-                ids.add(label[len(EVAL_LABEL_PREFIX) :])
+        eval_id = eval_id_from_issue(issue)
+        if eval_id is not None:
+            ids.add(eval_id)
     return ids
 
 

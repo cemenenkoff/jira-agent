@@ -21,6 +21,16 @@ def _adf(text: str) -> dict:
 
 def test_adf_to_text_flattens_paragraphs() -> None:
     assert adf_to_text(_adf("hello world")) == "hello world"
+    # Block-level nodes are separated by newlines so paragraphs don't run together.
+    multi = {
+        "type": "doc",
+        "version": 1,
+        "content": [
+            {"type": "paragraph", "content": [{"type": "text", "text": "first"}]},
+            {"type": "paragraph", "content": [{"type": "text", "text": "second"}]},
+        ],
+    }
+    assert adf_to_text(multi) == "first\nsecond"
 
 
 def test_issue_to_ticket_reads_summary_and_description() -> None:

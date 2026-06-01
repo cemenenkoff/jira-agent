@@ -88,3 +88,17 @@ def test_citation_normalization(corpus: PolicyCorpus) -> None:
     decision = pipe.process(Ticket(id="T-001", body="how many attempts before lockout?"))
     assert decision.action is ActionType.RESOLVE
     assert [str(c) for c in decision.citations] == ["POL-01 §1.4"]
+
+
+def test_empty_answer_with_valid_citation_defers(corpus: PolicyCorpus) -> None:
+    # An empty (whitespace-only) answer paired with an otherwise-valid, retrieved citation must
+    # NOT resolve — that would post a bare "Source: ..." comment. It defers LOW_CONFIDENCE.
+    llm = FakeLLM(
+        answer='{"answer": "   ", "citations": [{"policy_id": "POL-01", "section": "1.4"}],'
+        ' "conflict": false}'
+    )
+    pipe = _pipeline(corpus, llm=llm, retrieved=[_rsec(corpus, "POL-01", "1.4", 0.9)])
+    decision = pipe.process(Ticket(id="T-001", body="how many attempts before lockout?"))
+    assert decision.action is ActionType.DEFER
+    assert decision.reason_code is ReasonCode.LOW_CONFIDENCE
+    assert not decision.answer

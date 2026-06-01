@@ -24,10 +24,11 @@ class Settings(BaseSettings):
     jira_project_key: str = "ITSD"
 
     # ── Agent behavior ───────────────────────────────────────────────
-    # A LOW floor, not the primary gate: raw TF-IDF scores don't separate
-    # resolve-able from defer-able tickets (they overlap), so the real
-    # confidence comes from the LLM grounding + citation verification. This
-    # only catches near-zero retrieval (no lexical overlap at all).
+    # A LOW floor, not the primary gate: raw retrieval scores (TF-IDF or
+    # embeddings) don't separate resolve-able from defer-able tickets (they
+    # overlap), so the real confidence comes from the LLM grounding + citation
+    # verification. This only catches near-zero retrieval (no overlap at all).
+    # See docs/adr/0001-confidence-floor-not-threshold.md.
     agent_confidence_threshold: float = 0.05
     # How many policy sections to retrieve and show the answering LLM.
     agent_retrieval_k: int = 8

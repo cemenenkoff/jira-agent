@@ -1,9 +1,10 @@
 """Retrieval over the policy corpus.
 
-The pipeline depends only on the `Retriever` protocol, so the embedding-backed
-retriever (Voyage / local) can be swapped in later without touching the agent.
-The TF-IDF retriever is the default: zero API keys, runs offline, and gives a
-real similarity score for the LOW_CONFIDENCE threshold on a ~60-section corpus.
+The pipeline depends only on the `Retriever` protocol, so the backend is swappable
+without touching the agent. The default is the local semantic-embeddings retriever
+(sentence-transformers, no API key, runs offline); the TF-IDF retriever is the
+PyTorch-free fallback. Both score 0..1 and feed only the low LOW_CONFIDENCE *floor*
+(not the RESOLVE/DEFER gate — see docs/adr/0001) on a ~60-section corpus.
 """
 
 from __future__ import annotations
@@ -52,6 +53,10 @@ class LocalEmbeddingRetriever:
     Closes the lexical gaps TF-IDF can't (e.g. "shut my laptop down if hacked" ->
     POL-09 §9.2 "do NOT power off"). Sections are embedded with their policy title for
     extra context; cosine similarity over normalized vectors gives the 0..1 score.
+
+    The default model is English-centric: a non-English ticket retrieves weakly and
+    defers safely. Multilingual support is a model swap, not built today (see the
+    README "Scope & deliberate limitations").
     """
 
     def __init__(
@@ -84,7 +89,8 @@ class LocalEmbeddingRetriever:
 
 
 def build_retriever(settings: Settings, corpus: PolicyCorpus) -> Retriever:
-    """Select the retriever from config. Default TF-IDF; opt into semantic embeddings."""
+    """Select the retriever from config: default is local semantic embeddings;
+    'tfidf' is the PyTorch-free lexical fallback."""
     kind = settings.agent_retriever.lower()
     if kind == "tfidf":
         return TfidfRetriever(corpus)

@@ -13,7 +13,12 @@ from pydantic import BaseModel, Field
 
 
 class ActionType(StrEnum):
-    """The two terminal dispositions for a ticket."""
+    """The two terminal dispositions for a ticket.
+
+    Two-state by design: an ambiguous ticket is DEFERred to a human rather than met with a
+    clarifying follow-up question ("defer, don't guess"). See the README "Scope & deliberate
+    limitations".
+    """
 
     RESOLVE = "RESOLVE"
     DEFER = "DEFER"
@@ -48,6 +53,12 @@ class Citation(BaseModel):
         return f"{self.policy_id} §{self.section}"
 
 
+def citation_keys(citations: list[Citation]) -> set[tuple[str, str]]:
+    """The (policy_id, section) key set for a list of citations — the shared form used to
+    compare expected vs predicted citation sets in eval scoring and grounding."""
+    return {(c.policy_id, c.section) for c in citations}
+
+
 class PolicySection(BaseModel):
     """One numbered clause within a policy (the citable unit)."""
 
@@ -69,6 +80,8 @@ class Policy(BaseModel):
     id: str
     title: str
     effective: str
+    # `owner` (e.g. "Identity & Access Management team") is a dormant seam for future
+    # owner-based sub-team routing of DEFERs; it is not consumed today. See README limitations.
     owner: str
     sections: list[PolicySection]
 

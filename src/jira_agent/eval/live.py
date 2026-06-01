@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any, Protocol
 
 from ..jira.mapping import issue_to_ticket
-from ..jira.seed import EVAL_LABEL_PREFIX
+from ..jira.seed import eval_id_from_issue
 from ..logging_setup import get_logger
 from ..models import EvalRecord, EvalTicket
 from .harness import score_ticket
@@ -27,13 +27,6 @@ class _Jira(Protocol):
     def search(self, jql: str, max_results: int = 50) -> list[dict[str, Any]]: ...
 
 
-def _eval_id(issue: dict[str, Any]) -> str | None:
-    for label in issue.get("fields", {}).get("labels", []):
-        if isinstance(label, str) and label.startswith(EVAL_LABEL_PREFIX):
-            return label[len(EVAL_LABEL_PREFIX) :]
-    return None
-
-
 def run_live_eval(
     jira: _Jira,
     pipeline: _Pipeline,
@@ -45,7 +38,7 @@ def run_live_eval(
     records: list[EvalRecord] = []
 
     for issue in jira.search(f'project = "{project_key}"', max_results=100):
-        eval_id = _eval_id(issue)
+        eval_id = eval_id_from_issue(issue)
         if eval_id is None or eval_id not in ground_truth:
             continue  # not a seeded eval ticket
         expected = ground_truth[eval_id]

@@ -30,8 +30,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Pick one concrete embedding backend for the hybrid retriever (TF-IDF is the default fallback).
-voyage = ["voyageai>=0.2"]               # Anthropic-recommended hosted embeddings (needs VOYAGE_API_KEY)
+# Retriever backends are mutually exclusive. Default is local semantic embeddings;
+# plain `uv sync` + AGENT_RETRIEVER=tfidf gives the PyTorch-free lexical fallback.
 local-embeddings = ["sentence-transformers>=3.0"]  # offline embeddings, no API key (pulls torch)
 dev = [
     "pytest>=8.2",

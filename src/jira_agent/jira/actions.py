@@ -19,6 +19,11 @@ log = get_logger("jira.actions")
 _RESOLVE_TRANSITIONS = ("Resolve", "Resolved", "Done", "Close", "Closed")
 
 
+def _reason_value(d: Decision) -> str:
+    """The reason-code string for labels/comments, or UNSPECIFIED if somehow unset."""
+    return _reason_value(d)
+
+
 class TicketActions:
     def __init__(self, client: JiraClient, settings: Settings) -> None:
         self._jira = client
@@ -52,7 +57,7 @@ class TicketActions:
     # ── DEFER ────────────────────────────────────────────────────────
     def _defer(self, d: Decision) -> None:
         comment = _format_defer_comment(d)
-        reason = d.reason_code.value if d.reason_code else "UNSPECIFIED"
+        reason = _reason_value(d)
         labels = [self._defer_label, f"reason:{reason}"]
         log.info("defer", ticket=d.ticket_id, reason=reason, dry_run=self._dry_run)
         if self._dry_run:
@@ -71,16 +76,21 @@ class TicketActions:
 
 def _format_resolve_comment(d: Decision) -> str:
     cites = ", ".join(str(c) for c in d.citations)
+    # NOTE: we deliberately do NOT promise "reply to re-open". The runner excludes tickets
+    # carrying the auto-resolved label (and de-dupes via the in-memory _seen set), so a
+    # re-opened ticket is not automatically re-evaluated; true resurrection handling needs a
+    # durable processed-ticket store (see README "What I'd harden"). Point the user at a path
+    # that actually works instead of an invitation the architecture can't honor.
     return (
         f"{d.answer}\n\n"
         f"Source: {cites}\n\n"
-        "— Auto-resolved by the Helix IT policy agent. "
-        "Reply to re-open if this didn't fully answer your question."
+        "— Auto-resolved by the Helix IT policy agent. If this didn't fully answer your "
+        "question, open a new ticket or contact the Service Desk and a person will help."
     )
 
 
 def _format_defer_comment(d: Decision) -> str:
-    reason = d.reason_code.value if d.reason_code else "UNSPECIFIED"
+    reason = _reason_value(d)
     desc = REASON_CODE_DESCRIPTIONS.get(d.reason_code, "") if d.reason_code else ""
     rationale = f"\n\n{d.rationale}" if d.rationale else ""
     return (

@@ -4,7 +4,7 @@
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
-![Tests](https://img.shields.io/badge/tests-49%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-50%20passing-brightgreen)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 A grounded AI agent for **Helix Industries** that monitors a Jira Service Desk project,
@@ -55,7 +55,7 @@ A ticket reaches RESOLVE only by clearing every gate; any failure falls through 
 flowchart TD
     A([New Jira ticket]) --> T{"Triage<br/>safety &amp; scope (LLM)"}
     T -->|"red flag"| D["DEFER<br/>reason code"]
-    T -->|"clean"| R["Retrieve top-k<br/>policy sections<br/>(TF-IDF or embeddings)"]
+    T -->|"clean"| R["Retrieve top-k<br/>policy sections<br/>(embeddings or TF-IDF)"]
     R --> F{"Score below<br/>floor?"}
     F -->|"yes"| D
     F -->|"no"| G{"Ground &amp; verify<br/>answer only from<br/>retrieved sections"}
@@ -114,8 +114,10 @@ resolve a ticket on a section it never saw, nor invent one.
 - **New language:** the retriever is swappable (use a multilingual embedding model) and the
   prompts can be told to answer in the ticket's language or DEFER; today non-grounded/unsure
   cases defer safely.
-- **Better retrieval:** `AGENT_RETRIEVER=local` swaps TF-IDF for semantic embeddings behind the
-  same `Retriever` protocol — this is what lifted retrieval recall to 25/25.
+- **Better retrieval:** the default `AGENT_RETRIEVER=local` uses semantic embeddings; set
+  `AGENT_RETRIEVER=tfidf` for a lexical, PyTorch-free fallback — both sit behind the same
+  `Retriever` protocol. Embeddings lifted retrieval recall@8 from 21/25 to 25/25 (see
+  [ADR-0002](docs/adr/0002-default-semantic-embeddings-retriever.md)).
 
 ## Setup & usage
 
@@ -131,15 +133,35 @@ uv run jira-agent eval               # offline: score all 50 vs ground truth →
 uv run jira-agent eval-live          # integration test: score against tickets read from Jira
 ```
 
-Engineering: typed (pydantic, mypy `--strict`), linted (ruff), 48 tests; Jira REST client with
+Engineering: typed (pydantic, mypy `--strict`), linted (ruff), 50 tests; Jira REST client with
 explicit timeouts + bounded retries; structured logging; secrets only via `.env`.
+
+## Scope & deliberate limitations
+
+A few edge cases are handled by **safe deferral** rather than dedicated logic — a conscious scope
+choice for this build, stated here rather than left implicit. The fail-safe-DEFER architecture
+means each degrades safely (none can cause an unsafe auto-resolve), so they are accepted as-is:
+
+- **Attachments / screenshots are ignored** (text-only). The Jira reader flattens only text nodes,
+  so an image-only ticket arrives near-empty and defers `LOW_CONFIDENCE`. Intentional — OCR'ing
+  untrusted images would widen the prompt-injection surface the prompts work to contain.
+- **Non-English tickets are not translated.** The default embedding model is English-centric, so a
+  foreign-language question retrieves weakly and defers; multilingual support is a retriever/prompt
+  swap (see Extensibility), not built today.
+- **No IT sub-team routing.** DEFER applies `needs-human` + `reason:<CODE>`; it does not assign a
+  ticket to DBA vs Endpoint vs Identity. `Policy.owner` is the dormant seam for owner-based routing
+  later; today a human routes from the reason code.
+- **No clarifying questions.** The action space is two-state (RESOLVE / DEFER); an ambiguous ticket
+  is deferred to a human rather than answered with a follow-up — "defer, don't guess".
+- **Multi-part tickets** get one grounded answer (or a whole-ticket defer if any part trips triage);
+  there is no per-question split. Decomposition is future work.
 
 ## What I'd harden before production
 
 - **Durable processed-ticket store** (replace the in-memory `_seen` set) for idempotency across
   restarts; handle resurrected/duplicate tickets.
 - **Jira/JSM:** rate-limit backoff tuning, and customer-portal-visible replies via the
-  servicedesk API (today the agent posts internal comments).
+  servicedesk API (today the agent posts standard issue comments).
 - **Human-in-the-loop** review queue for low-confidence resolves; **per-tenant** policy isolation
   and secrets management.
 - **Eval CI gate** that fails the build on accuracy/false-positive regressions; periodic

@@ -82,9 +82,6 @@ class PolicyCorpus:
     def sections(self) -> list[PolicySection]:
         return [s for p in self.policies for s in p.sections]
 
-    def has_policy(self, policy_id: str) -> bool:
-        return policy_id in self._by_id
-
     def get_policy(self, policy_id: str) -> Policy | None:
         return self._by_id.get(policy_id)
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from ..models import ActionType, Citation, EvalRecord
+from ..models import ActionType, Citation, EvalRecord, citation_keys
 
 FALSE_POSITIVE_WEIGHT = 3.0
 
@@ -34,7 +34,7 @@ def summarize(records: list[EvalRecord]) -> dict[str, float | int]:
         1
         for r in resolves
         if r.predicted_action is ActionType.RESOLVE
-        and _citset(r.expected_citations) <= _citset(r.predicted_citations)
+        and citation_keys(r.expected_citations) <= citation_keys(r.predicted_citations)
     )
 
     weighted_error = FALSE_POSITIVE_WEIGHT * false_positives + missed_resolves
@@ -53,10 +53,6 @@ def summarize(records: list[EvalRecord]) -> dict[str, float | int]:
         "wrong_detail": wrong_detail,
         "weighted_error": weighted_error,
     }
-
-
-def _citset(citations: list[Citation]) -> set[tuple[str, str]]:
-    return {(c.policy_id, c.section) for c in citations}
 
 
 def _ratio(num: int, denom: int) -> float:
@@ -102,7 +98,7 @@ def _row_status(r: EvalRecord) -> str:
     if (
         r.expected_action is ActionType.RESOLVE
         and r.predicted_action is ActionType.RESOLVE
-        and _citset(r.expected_citations) <= _citset(r.predicted_citations)
+        and citation_keys(r.expected_citations) <= citation_keys(r.predicted_citations)
     ):
         return "⚠️"
     return "❌"

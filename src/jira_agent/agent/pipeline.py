@@ -5,8 +5,8 @@ gate; any failure falls through to DEFER:
 
     triage red flag?            -> DEFER (triage reason code)
     top retrieval < threshold?  -> DEFER (LOW_CONFIDENCE)
-    answer cites unsupported?   -> DEFER (LOW_CONFIDENCE)
     sections conflict?          -> DEFER (CONFLICTING_POLICIES)
+    citation unsupported/empty? -> DEFER (LOW_CONFIDENCE)
     else                        -> RESOLVE (grounded answer + verified citations)
 """
 
@@ -54,7 +54,9 @@ class AgentPipeline:
                 rationale=triage.rationale,
             )
 
-        # 2. Retrieve + confidence floor.
+        # 2. Retrieve + confidence floor. The whole ticket body is one query and yields a
+        # single grounded answer — multi-part tickets are not split (see README "Scope &
+        # deliberate limitations"); a part that trips triage defers the whole ticket above.
         retrieved = self._retriever.retrieve(ticket.body, k=self._retrieval_k)
         top = retrieved[0].score if retrieved else 0.0
         if top < self._threshold:
@@ -77,10 +79,16 @@ class AgentPipeline:
                 retrieved=retrieved,
             )
 
-        # 4. Verify citations before allowing RESOLVE.
+        # 4. Verify citations AND require a non-empty answer before allowing RESOLVE. An empty
+        # answer paired with otherwise-valid citations must NOT resolve (the comment would be a
+        # bare "Source: ..."); treat it as a conservative LOW_CONFIDENCE deferral.
         grounding = verify_citations(citations, self._corpus, retrieved)
         if not grounding.ok:
             return self._defer_low_confidence(ticket, top, retrieved, "; ".join(grounding.problems))
+        if not answer.strip():
+            return self._defer_low_confidence(
+                ticket, top, retrieved, "Grounded answer was empty; nothing to resolve with."
+            )
 
         return Decision(
             ticket_id=ticket.id,

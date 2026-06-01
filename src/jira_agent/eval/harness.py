@@ -6,16 +6,12 @@ import json
 from pathlib import Path
 
 from ..agent.pipeline import AgentPipeline
-from ..models import ActionType, Citation, EvalRecord, EvalTicket
+from ..models import ActionType, Citation, EvalRecord, EvalTicket, citation_keys
 
 
 def load_eval_tickets(path: Path) -> list[EvalTicket]:
     data = json.loads(path.read_text(encoding="utf-8"))
     return [EvalTicket(**t) for t in data["tickets"]]
-
-
-def _citation_set(citations: list[Citation]) -> set[tuple[str, str]]:
-    return {(c.policy_id, c.section) for c in citations}
 
 
 def score_ticket(
@@ -29,7 +25,7 @@ def score_ticket(
     action_correct = decision_action == expected.expected_action
     if expected.expected_action is ActionType.RESOLVE:
         detail_correct = action_correct and (
-            _citation_set(predicted_citations) == _citation_set(expected.expected_citations)
+            citation_keys(predicted_citations) == citation_keys(expected.expected_citations)
         )
     else:
         detail_correct = action_correct and predicted_reason == expected.expected_reason_code

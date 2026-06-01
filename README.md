@@ -18,12 +18,13 @@ from prior knowledge.
 
 ## Demo
 
-<!-- docs/media/jira-agent-demo.mp4 — H.264, compressed from the source recording to ~18 MB to
-  keep the repo light. To refresh: re-encode with
-  `ffmpeg -i source.mov -c:v libx264 -crf 28 -preset medium -c:a aac -b:a 96k -movflags +faststart out.mp4`.
-  GitHub renders the <video> tag below from the file's raw URL. -->
+<!-- Inline player: a GitHub user-attachments URL (uploaded via the web editor) — these render
+  reliably as a player, unlike a <video> tag pointing at a committed file. The committed copy at
+  docs/media/jira-agent-demo.mp4 (720p H.264, ~9 MB, two-pass to stay under GitHub's 10 MB
+  attachment cap) backs the download link. To refresh: re-encode, re-upload via the editor, swap
+  the URL below. -->
 
-<video src="https://github.com/cemenenkoff/jira-agent/raw/main/docs/media/jira-agent-demo.mp4" controls width="100%"></video>
+https://github.com/user-attachments/assets/5628cc20-fa6f-4292-817d-3218f81f7bed
 
 ▶️ **[Watch the demo](docs/media/jira-agent-demo.mp4)** — a ~7-minute walkthrough: the agent
 resolving a live ticket with a cited policy section, and deferring incidents and prompt-injection

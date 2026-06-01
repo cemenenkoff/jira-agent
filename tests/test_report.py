@@ -63,3 +63,29 @@ def test_to_markdown_distinguishes_overcite_from_miss() -> None:
     assert "⚠️" in rows["T-2"]  # over-cite: required present + extra
     assert "❌" in rows["T-3"]  # miss: a required citation absent
     assert "Legend:" in md
+
+
+def test_write_report_writes_csv_and_md(tmp_path) -> None:
+    from jira_agent.eval.report import write_report
+
+    resolve = _resolve(
+        "T-1",
+        [Citation(policy_id="POL-01", section="1.4")],
+        [Citation(policy_id="POL-01", section="1.4")],
+    )
+    defer = EvalRecord(
+        ticket_id="T-3",
+        expected_action=ActionType.DEFER,
+        predicted_action=ActionType.DEFER,
+        expected_reason_code=ReasonCode.OUT_OF_SCOPE,
+        predicted_reason_code=ReasonCode.OUT_OF_SCOPE,
+        action_correct=True,
+        detail_correct=True,
+    )
+    metrics = write_report([resolve, defer], tmp_path)
+    assert (tmp_path / "eval_report.csv").exists()
+    md = (tmp_path / "eval_report.md").read_text(encoding="utf-8")
+    assert "OUT_OF_SCOPE" in md  # DEFER detail rendered
+    assert "POL-01 §1.4" in md  # RESOLVE detail rendered
+    assert metrics["resolve_total"] == 1
+    assert metrics["defer_total"] == 1

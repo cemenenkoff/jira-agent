@@ -20,6 +20,7 @@ from ..logging_setup import get_logger
 from ..models import ActionType, Citation, Decision, ReasonCode, RetrievedSection, Ticket
 from ..policies.loader import PolicyCorpus
 from ..policies.retriever import Retriever
+from ..redaction import redact
 from ..triage.classifier import TriageClassifier
 from .grounding import verify_citations
 
@@ -44,6 +45,14 @@ class AgentPipeline:
         self._retrieval_k = settings.agent_retrieval_k
 
     def process(self, ticket: Ticket) -> Decision:
+        # 0. Redact secrets/PII from the untrusted ticket BEFORE it reaches the LLM, retriever,
+        # or logs (defense-in-depth, see redaction.py). The model never sees a raw secret, so it
+        # cannot echo one back in its rationale or answer.
+        safe_body = redact(ticket.body)
+        if safe_body != ticket.body:
+            log.info("ticket.redacted", ticket=ticket.id)
+            ticket = ticket.model_copy(update={"body": safe_body})
+
         # 1. Safety / scope triage. Any red flag => DEFER immediately.
         triage = self._triage.classify(ticket)
         if triage.reason_code is not None:

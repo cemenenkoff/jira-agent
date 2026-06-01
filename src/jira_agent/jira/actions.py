@@ -10,7 +10,9 @@ from __future__ import annotations
 from ..config import Settings
 from ..logging_setup import get_logger
 from ..models import ActionType, Decision
-from ..reason_codes import REASON_CODE_DESCRIPTIONS
+from ..reason_codes import REASON_CODE_DESCRIPTIONS, SOC_ALERT_REASON_CODES
+from ..redaction import redact_secrets
+from ..soc import SocNotifier, build_soc_notifier
 from .client import JiraClient
 
 log = get_logger("jira.actions")
@@ -21,15 +23,18 @@ _RESOLVE_TRANSITIONS = ("Resolve", "Resolved", "Done", "Close", "Closed")
 
 def _reason_value(d: Decision) -> str:
     """The reason-code string for labels/comments, or UNSPECIFIED if somehow unset."""
-    return _reason_value(d)
+    return d.reason_code.value if d.reason_code else "UNSPECIFIED"
 
 
 class TicketActions:
-    def __init__(self, client: JiraClient, settings: Settings) -> None:
+    def __init__(
+        self, client: JiraClient, settings: Settings, notifier: SocNotifier | None = None
+    ) -> None:
         self._jira = client
         self._dry_run = settings.agent_dry_run
         self._resolved_label = settings.agent_resolved_label
         self._defer_label = settings.agent_defer_label
+        self._notifier = notifier or build_soc_notifier(settings)
 
     def apply(self, decision: Decision) -> None:
         if decision.action is ActionType.RESOLVE:
@@ -39,7 +44,7 @@ class TicketActions:
 
     # ── RESOLVE ──────────────────────────────────────────────────────
     def _resolve(self, d: Decision) -> None:
-        comment = _format_resolve_comment(d)
+        comment = redact_secrets(_format_resolve_comment(d))
         labels = [self._resolved_label]
         log.info(
             "resolve",
@@ -56,7 +61,11 @@ class TicketActions:
 
     # ── DEFER ────────────────────────────────────────────────────────
     def _defer(self, d: Decision) -> None:
-        comment = _format_defer_comment(d)
+        # Page the SOC for high-severity reasons (active incident / prompt injection) regardless
+        # of dry-run — a missed alert is worse than a no-op write. The notifier never raises.
+        if d.reason_code in SOC_ALERT_REASON_CODES:
+            self._notifier.notify(d)
+        comment = redact_secrets(_format_defer_comment(d))
         reason = _reason_value(d)
         labels = [self._defer_label, f"reason:{reason}"]
         log.info("defer", ticket=d.ticket_id, reason=reason, dry_run=self._dry_run)

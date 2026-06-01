@@ -61,6 +61,7 @@ class FakeJira:
         *,
         issue_types: list[dict[str, Any]] | None = None,
         existing: list[dict[str, Any]] | None = None,
+        transitions: list[dict[str, Any]] | None = None,
     ) -> None:
         self._issue_types = (
             issue_types
@@ -68,7 +69,16 @@ class FakeJira:
             else [{"name": "Service Request"}, {"name": "Task"}, {"name": "Incident"}]
         )
         self._existing = existing or []
+        self._transitions = (
+            transitions
+            if transitions is not None
+            else [{"name": "In Progress", "id": "11"}, {"name": "Resolved", "id": "31"}]
+        )
         self.created: list[dict[str, Any]] = []
+        # write-op recorders, so action tests can assert side effects
+        self.comments: list[tuple[str, str]] = []
+        self.labels: list[tuple[str, list[str]]] = []
+        self.transitioned: list[tuple[str, str]] = []
 
     def get_project_issue_types(self, project_key: str) -> list[dict[str, Any]]:
         return self._issue_types
@@ -95,3 +105,16 @@ class FakeJira:
         }
         self.created.append(record)
         return {"key": key, "fields": {"summary": summary, "labels": labels or []}}
+
+    # ── write ops (recorded for assertions) ──────────────────────────
+    def add_comment(self, issue_key: str, text: str) -> None:
+        self.comments.append((issue_key, text))
+
+    def add_labels(self, issue_key: str, labels: list[str]) -> None:
+        self.labels.append((issue_key, list(labels)))
+
+    def get_transitions(self, issue_key: str) -> list[dict[str, Any]]:
+        return self._transitions
+
+    def transition_issue(self, issue_key: str, transition_id: str) -> None:
+        self.transitioned.append((issue_key, transition_id))

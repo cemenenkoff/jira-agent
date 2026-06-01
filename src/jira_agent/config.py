@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     agent_dry_run: bool = True
     agent_resolved_label: str = "auto-resolved"
     agent_defer_label: str = "needs-human"
+    # Optional SOC webhook: if set, high-severity DEFERs (active incident / prompt injection)
+    # POST a JSON alert here; otherwise they emit a structured high-severity log line.
+    agent_soc_webhook_url: str | None = None
 
     # ── Observability ────────────────────────────────────────────────
     log_level: str = "INFO"

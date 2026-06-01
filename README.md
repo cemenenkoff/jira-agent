@@ -4,7 +4,7 @@
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Checked with mypy](https://www.mypy-lang.org/static/mypy_badge.svg)](https://mypy-lang.org/)
-![Tests](https://img.shields.io/badge/tests-50%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-77%20passing-brightgreen)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 A grounded AI agent for **Helix Industries** that monitors a Jira Service Desk project,
@@ -77,9 +77,11 @@ Reason codes the agent can assign: `ACTIVE_INCIDENT`, `PROMPT_INJECTION`, `HOSTI
 `SPECULATIVE`, `NONEXISTENT_POLICY`, `LOW_CONFIDENCE`, `CONFLICTING_POLICIES`.
 
 DEFER posts a reason-code comment, applies `needs-human` + a `reason:<CODE>` label, and leaves
-the ticket for a person. The layers (LLM, retriever, Jira) sit behind small interfaces and are
-swappable. Self-serve "yes you can" answers *instruct* the user — the agent never performs a
-privileged action itself.
+the ticket for a person. Secrets/PII in ticket text are scrubbed before they reach the model, a
+comment, or the logs, and high-severity defers (active incident, prompt injection) raise a SOC
+alert — a structured log by default, or a POST to `AGENT_SOC_WEBHOOK_URL`. The layers (LLM,
+retriever, Jira) sit behind small interfaces and are swappable. Self-serve "yes you can" answers
+*instruct* the user — the agent never performs a privileged action itself.
 
 ## Prompt strategy
 
@@ -133,7 +135,7 @@ uv run jira-agent eval               # offline: score all 50 vs ground truth →
 uv run jira-agent eval-live          # integration test: score against tickets read from Jira
 ```
 
-Engineering: typed (pydantic, mypy `--strict`), linted (ruff), 50 tests; Jira REST client with
+Engineering: typed (pydantic, mypy `--strict`), linted (ruff), 77 tests; Jira REST client with
 explicit timeouts + bounded retries; structured logging; secrets only via `.env`.
 
 ## Scope & deliberate limitations

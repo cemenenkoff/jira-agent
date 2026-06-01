@@ -31,3 +31,6 @@ REASON_CODE_DESCRIPTIONS: dict[ReasonCode, str] = {
 
 # Reason codes the deterministic pipeline assigns post-retrieval (no LLM triage needed).
 RETRIEVAL_REASON_CODES = {ReasonCode.LOW_CONFIDENCE, ReasonCode.CONFLICTING_POLICIES}
+
+# Reason codes severe enough to page the SOC, not just label + comment (see soc.py).
+SOC_ALERT_REASON_CODES = {ReasonCode.ACTIVE_INCIDENT, ReasonCode.PROMPT_INJECTION}

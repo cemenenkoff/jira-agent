@@ -24,7 +24,9 @@ data/tickets/eval_tickets.json 50-ticket eval set with structured ground truth
 src/jira_agent/
   config.py        Settings (pydantic-settings, reads .env); require_jira()/require_llm()
   models.py        ActionType, ReasonCode (12), Citation, Policy/PolicySection, Ticket, Decision, Eval*
-  reason_codes.py  REASON_CODE_DESCRIPTIONS; RETRIEVAL_REASON_CODES (LOW_CONFIDENCE/CONFLICTING_POLICIES)
+  reason_codes.py  REASON_CODE_DESCRIPTIONS; RETRIEVAL_REASON_CODES; SOC_ALERT_REASON_CODES
+  redaction.py     redact()/redact_secrets() — scrub secrets+PII before the LLM/Jira/logs
+  soc.py           SocNotifier (logging/webhook) for high-severity DEFERs; build_soc_notifier
   policies/        loader.py (PolicyCorpus) · retriever.py (Retriever protocol, TfidfRetriever,
                    LocalEmbeddingRetriever, build_retriever factory)
   triage/          classifier.py (TriageClassifier → reason code or None)
@@ -91,7 +93,7 @@ uv run jira-agent policies | seed | run [--once] | eval | eval-live
 **State:** feature-complete and working end-to-end against live Jira. Latest `eval-live`
 (embeddings, `claude-sonnet-4-6`): action **50/50**, DEFER **25/25**, **0 false positives**,
 RESOLVE **21/25 exact / 24/25 required-citation**, weighted_error **0**. Full per-ticket results:
-[`docs/eval_report.md`](docs/eval_report.md). Suite currently 50 tests; ruff + mypy clean.
+[`docs/eval_report.md`](docs/eval_report.md). Suite currently 77 tests; ruff + mypy clean.
 
 **Done:** policies + eval set, full pipeline (triage/retrieve/ground/verify), TF-IDF + embeddings
 retrievers, Jira client/seed/actions, offline + live eval, README (≤2pp), eval-report snapshot,

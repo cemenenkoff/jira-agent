@@ -6,7 +6,7 @@ policy section — and **defers** everything else to a human with a structured r
 The 10 IT policies are the *only* authorized knowledge source; the agent refuses to answer
 from prior knowledge.
 
-> Forward Deployed Engineer take-home. Brief in [`input/`](input/); eval report in
+> Jira ticketing agent learning lab. Brief in [`input/`](input/); eval report in
 > [`docs/eval_report.md`](docs/eval_report.md).
 
 ## Results
@@ -110,7 +110,7 @@ uv run jira-agent eval               # offline: score all 50 vs ground truth →
 uv run jira-agent eval-live          # integration test: score against tickets read from Jira
 ```
 
-Engineering: typed (pydantic, mypy `--strict`), linted (ruff), 46 tests; Jira REST client with
+Engineering: typed (pydantic, mypy `--strict`), linted (ruff), 48 tests; Jira REST client with
 explicit timeouts + bounded retries; structured logging; secrets only via `.env`.
 
 ## What I'd harden before production

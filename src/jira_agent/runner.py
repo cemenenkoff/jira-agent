@@ -39,9 +39,13 @@ class AgentRunner:
 
     def _new_ticket_jql(self) -> str:
         # "Unprocessed" = no agent label yet and not already Done. FIFO by creation.
+        # NOTE: Jira JQL `labels NOT IN (...)` excludes issues whose labels are EMPTY, so a
+        # brand-new (label-less) ticket would be missed — hence the explicit `labels IS EMPTY`.
+        unprocessed = (
+            f'labels IS EMPTY OR labels NOT IN ("{self._resolved_label}", "{self._defer_label}")'
+        )
         return (
-            f'project = "{self._project}" '
-            f'AND labels NOT IN ("{self._resolved_label}", "{self._defer_label}") '
+            f'project = "{self._project}" AND ({unprocessed}) '
             f"AND statusCategory != Done ORDER BY created ASC"
         )
 

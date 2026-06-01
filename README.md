@@ -18,17 +18,14 @@ from prior knowledge.
 
 ## Demo
 
-<!-- Demo video — docs/media/jira-agent-demo.mov. Two ways to embed; pick one:
-  A) Commit the file at docs/media/jira-agent-demo.mov — the <video> tag below renders it from
-     the raw URL. Keep it modest in size (a large .mov bloats the repo; compress to H.264 .mp4
-     or use Git LFS for anything big).
-  B) No binary in the repo (better for large files): on github.com, edit this README and drag-
-     and-drop the video into the editor. GitHub uploads it and inserts a
-     https://github.com/user-attachments/assets/... URL that renders a player — use that here. -->
+<!-- docs/media/jira-agent-demo.mp4 — H.264, compressed from the source recording to ~18 MB to
+  keep the repo light. To refresh: re-encode with
+  `ffmpeg -i source.mov -c:v libx264 -crf 28 -preset medium -c:a aac -b:a 96k -movflags +faststart out.mp4`.
+  GitHub renders the <video> tag below from the file's raw URL. -->
 
-<video src="https://github.com/cemenenkoff/jira-agent/raw/main/docs/media/jira-agent-demo.mov" controls width="100%"></video>
+<video src="https://github.com/cemenenkoff/jira-agent/raw/main/docs/media/jira-agent-demo.mp4" controls width="100%"></video>
 
-▶️ **[Watch the demo](docs/media/jira-agent-demo.mov)** — a ~5-minute walkthrough: the agent
+▶️ **[Watch the demo](docs/media/jira-agent-demo.mp4)** — a ~7-minute walkthrough: the agent
 resolving a live ticket with a cited policy section, and deferring incidents and prompt-injection
 attempts to a human.
 

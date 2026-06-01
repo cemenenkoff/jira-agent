@@ -52,6 +52,9 @@ input/
 docs/LOOM_OUTLINE.md
 docs/LOOM_SCRIPT.md
 
+# --- Audit deliverables (kept local) ---
+audit/
+
 # --- Editor / OS ---
 .vscode/
 .idea/

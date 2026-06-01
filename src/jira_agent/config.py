@@ -31,6 +31,10 @@ class Settings(BaseSettings):
     agent_confidence_threshold: float = 0.05
     # How many policy sections to retrieve and show the answering LLM.
     agent_retrieval_k: int = 8
+    # Which retriever to use: "tfidf" (offline, no extra deps) or "local"
+    # (semantic embeddings via sentence-transformers; needs the local-embeddings extra).
+    agent_retriever: str = "tfidf"
+    agent_embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     agent_poll_interval_seconds: int = 30
     agent_dry_run: bool = True
     agent_resolved_label: str = "auto-resolved"

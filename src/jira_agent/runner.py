@@ -8,14 +8,13 @@ store would replace `_seen` for production (see README hardening notes).
 from __future__ import annotations
 
 import time
-from typing import Any
 
 from .agent.pipeline import AgentPipeline
 from .config import Settings
 from .jira.actions import TicketActions
 from .jira.client import JiraClient
+from .jira.mapping import issue_to_ticket
 from .logging_setup import get_logger
-from .models import Ticket
 
 log = get_logger("agent.runner")
 
@@ -49,7 +48,7 @@ class AgentRunner:
     def poll_once(self) -> int:
         processed = 0
         for issue in self._jira.search(self._new_ticket_jql()):
-            ticket = _to_ticket(issue)
+            ticket = issue_to_ticket(issue)
             if ticket.id in self._seen:
                 continue
             log.info("processing", ticket=ticket.id)
@@ -68,24 +67,3 @@ class AgentRunner:
             except Exception as exc:  # keep the loop alive; surface the error
                 log.error("poll.error", error=str(exc))
             time.sleep(self._interval)
-
-
-def _to_ticket(issue: dict[str, Any]) -> Ticket:
-    fields = issue.get("fields", {})
-    desc = fields.get("description")
-    body = _adf_to_text(desc) if isinstance(desc, dict) else (desc or "")
-    summary = fields.get("summary")
-    full = f"{summary}\n\n{body}".strip() if summary else body
-    reporter = (fields.get("reporter") or {}).get("displayName")
-    return Ticket(id=issue["key"], body=full, summary=summary, reporter=reporter, raw=issue)
-
-
-def _adf_to_text(node: object) -> str:
-    """Best-effort flatten of an Atlassian Document Format node to plain text."""
-    if isinstance(node, dict):
-        if node.get("type") == "text":
-            return str(node.get("text", ""))
-        return "".join(_adf_to_text(c) for c in node.get("content", []))
-    if isinstance(node, list):
-        return "".join(_adf_to_text(c) for c in node)
-    return ""

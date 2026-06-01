@@ -27,6 +27,14 @@ def summarize(records: list[EvalRecord]) -> dict[str, float | int]:
     missed_resolves = sum(1 for r in resolves if r.predicted_action is ActionType.DEFER)
     # Right action but wrong citation/reason code.
     wrong_detail = sum(1 for r in records if r.action_correct and not r.detail_correct)
+    # Lenient citation metric: resolved with ALL required citations present (extras allowed).
+    # Distinguishes "missed/wrong section" (recall failure) from "over-cited" (precision only).
+    resolve_required_cited = sum(
+        1
+        for r in resolves
+        if r.predicted_action is ActionType.RESOLVE
+        and _citset(r.expected_citations) <= _citset(r.predicted_citations)
+    )
 
     weighted_error = FALSE_POSITIVE_WEIGHT * false_positives + missed_resolves
 
@@ -35,6 +43,7 @@ def summarize(records: list[EvalRecord]) -> dict[str, float | int]:
         "resolve_total": len(resolves),
         "resolve_correct": resolve_correct,
         "resolve_accuracy": _ratio(resolve_correct, len(resolves)),
+        "resolve_required_cited": resolve_required_cited,
         "defer_total": len(defers),
         "defer_correct": defer_correct,
         "defer_accuracy": _ratio(defer_correct, len(defers)),
@@ -43,6 +52,10 @@ def summarize(records: list[EvalRecord]) -> dict[str, float | int]:
         "wrong_detail": wrong_detail,
         "weighted_error": weighted_error,
     }
+
+
+def _citset(citations: list[Citation]) -> set[tuple[str, str]]:
+    return {(c.policy_id, c.section) for c in citations}
 
 
 def _ratio(num: int, denom: int) -> float:
@@ -85,8 +98,10 @@ def to_markdown(records: list[EvalRecord], metrics: dict[str, float | int]) -> s
         "# Eval Report",
         "",
         f"- Tickets: **{metrics['total']}**",
-        f"- RESOLVE accuracy: **{metrics['resolve_correct']}/{metrics['resolve_total']}** "
-        f"({metrics['resolve_accuracy']:.0%})",
+        f"- RESOLVE accuracy (exact citation): **{metrics['resolve_correct']}/"
+        f"{metrics['resolve_total']}** ({metrics['resolve_accuracy']:.0%})",
+        f"- RESOLVE with all required citations (extras allowed): "
+        f"**{metrics['resolve_required_cited']}/{metrics['resolve_total']}**",
         f"- DEFER accuracy: **{metrics['defer_correct']}/{metrics['defer_total']}** "
         f"({metrics['defer_accuracy']:.0%})",
         f"- False positives (resolved a DEFER): **{metrics['false_positives']}** "
@@ -109,10 +124,12 @@ def to_markdown(records: list[EvalRecord], metrics: dict[str, float | int]) -> s
     return "\n".join(lines)
 
 
-def write_report(records: list[EvalRecord], reports_dir: Path) -> dict[str, float | int]:
+def write_report(
+    records: list[EvalRecord], reports_dir: Path, basename: str = "eval_report"
+) -> dict[str, float | int]:
     metrics = summarize(records)
-    write_csv(records, reports_dir / "eval_report.csv")
-    (reports_dir / "eval_report.md").write_text(to_markdown(records, metrics), encoding="utf-8")
+    write_csv(records, reports_dir / f"{basename}.csv")
+    (reports_dir / f"{basename}.md").write_text(to_markdown(records, metrics), encoding="utf-8")
     return metrics
 
 

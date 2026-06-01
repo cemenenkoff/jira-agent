@@ -27,13 +27,13 @@ def _build_pipeline(settings: Settings, corpus: PolicyCorpus) -> AgentPipeline:
     """Assemble the pipeline from swappable parts (LLM/retriever/triage)."""
     from .agent.pipeline import AgentPipeline
     from .llm.anthropic_client import AnthropicClient
-    from .policies.retriever import TfidfRetriever
+    from .policies.retriever import build_retriever
     from .triage.classifier import TriageClassifier
 
     llm = AnthropicClient(settings)
     return AgentPipeline(
         triage=TriageClassifier(llm, corpus),
-        retriever=TfidfRetriever(corpus),
+        retriever=build_retriever(settings, corpus),
         llm=llm,
         corpus=corpus,
         settings=settings,
@@ -72,6 +72,43 @@ def run_eval() -> None:
     metrics = write_report(records, settings.reports_dir)
     console.print(metrics)
     console.print(f"[green]Wrote reports to {settings.reports_dir}[/green]")
+
+
+@app.command("eval-live")
+def eval_live() -> None:
+    """Integration test: score the agent against tickets read back from real Jira."""
+    settings = get_settings()
+    configure_logging(settings.log_level, settings.log_format)
+    corpus = _corpus(settings)
+    from .eval.harness import load_eval_tickets
+    from .eval.live import run_live_eval
+    from .eval.report import write_report
+    from .jira.client import JiraClient
+
+    tickets = load_eval_tickets(settings.tickets_file)
+    try:
+        pipeline = _build_pipeline(settings, corpus)
+        jira_cm = JiraClient(settings)
+    except RuntimeError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=1) from exc
+
+    with jira_cm as jira:
+        records = run_live_eval(
+            jira, pipeline, project_key=settings.jira_project_key, eval_tickets=tickets
+        )
+
+    if not records:
+        console.print(
+            "[yellow]No eval-labeled tickets found in Jira. Run `jira-agent seed` first.[/yellow]"
+        )
+        raise typer.Exit(code=1)
+
+    metrics = write_report(records, settings.reports_dir, basename="eval_live_report")
+    console.print(metrics)
+    console.print(
+        f"[green]Scored {len(records)} live tickets; wrote {settings.reports_dir}[/green]"
+    )
 
 
 @app.command()

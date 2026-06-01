@@ -24,7 +24,7 @@ from prior knowledge.
   attachment cap) backs the download link. To refresh: re-encode, re-upload via the editor, swap
   the URL below. -->
 
-https://github.com/user-attachments/assets/5628cc20-fa6f-4292-817d-3218f81f7bed
+https://github.com/user-attachments/assets/50f8d2d7-a829-459f-9f57-4060286ce7d4
 
 ▶️ **[Watch the demo](docs/media/jira-agent-demo.mp4)** — a ~7-minute walkthrough: the agent
 resolving a live ticket with a cited policy section, and deferring incidents and prompt-injection
